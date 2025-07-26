@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "pandabaramagic",
+	"version": "${version}",
+	"name": "Pandabara's Magic Mod",
+	"description": "A magic mod by Pandabara",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/pandabaramagic/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.pandabara.magicmod.PandabarasMagicMod"
+		],
+		"fabric-datagen": [
+			"com.pandabara.magicmod.PandabarasMagicModDataGenerator"
+		],
+		"client": [
+			"com.pandabara.magicmod.client.PandabaraMagicClient"
+		]
+	},
+	"mixins": [
+		"pandabaramagic.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.16.14",
+		"minecraft": "~1.21.8",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
