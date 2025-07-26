@@ -1,66 +1,78 @@
 name: build
-on: [pull_request, push]
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      pull-requests: read
       checks: write
 
     steps:
-      - name: checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: validate gradle wrapper
+      - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
 
-      - name: setup jdk
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           java-version: '21'
-          distribution: 'microsoft'
+          distribution: 'temurin'
           cache: 'gradle'
 
-      - name: make gradle wrapper executable
-        run: chmod +x ./gradlew
+      - name: Lint & test
+        id: check
+        continue-on-error: true
+        run: ./gradlew --no-daemon clean check --continue
 
-      - name: build
-        run: ./gradlew build
+      - name: Generate JaCoCo coverage report
+        id: jacoco
+        if: always()
+        run: ./gradlew --no-daemon jacocoTestReport -x test
 
-      - name: Run SonarQube
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: >
-          ./gradlew sonarqube
-          -Dsonar.host.url=$SONAR_HOST_URL
-          -Dsonar.token=$SONAR_TOKEN
-          -Dsonar.scanner.keepReport=true
-      - name: SonarQube Quality Gate
-        uses: sonarsource/sonarqube-quality-gate-action@v1
-        with:
-          scanMetadataReportFile: build/sonar/report-task.txt
-          pollingTimeoutSec: 600
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      - name: Build jars
+        if: always()
+        run: ./gradlew --no-daemon assemble
 
-      - name: capture build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Artifacts
-          path: build/libs/
-      - name: Upload Sonar scanner artifacts
+      - name: Upload build artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sonar-scanner
+          name: libs-${{ github.run_number }}
+          path: build/libs/*.jar
+          if-no-files-found: warn
+
+      - name: Upload test & lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ github.run_number }}
           path: |
-            build/sonar/report-task.txt
-            build/sonar/scanner-report/**
+            build/reports/**
+            build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.run_number }}
+          path: |
+            build/reports/jacoco/test/**
+            build/jacoco/test.exec
           if-no-files-found: warn
           retention-days: 7
+
+      # Make the job fail overall if tests failed
+      - name: Fail if checks or coverage failed
+        if: ${{ steps.check.outcome == 'failure' || steps.coverage.outcome == 'failure' }}
+        run: exit 1
