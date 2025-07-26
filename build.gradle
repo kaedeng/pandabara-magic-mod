@@ -78,6 +78,21 @@ tasks.withType(Pmd).configureEach {
 	}
 }
 
+pmd {
+	toolVersion = '7.16.0'
+	ruleSets = [
+			'category/java/errorprone.xml',
+			'category/java/bestpractices.xml'
+	]
+}
+
+checkstyle {
+	toolVersion = '10.18.1' // or current
+	config = resources.text.fromFile("$rootDir/config/checkstyle/checkstyle.xml")
+	// helpful for ${basedir} usage in configs:
+	configProperties = [ 'basedir': rootDir.absolutePath ]
+}
+
 jacocoTestReport {
 	reports {
 		xml.required = true
